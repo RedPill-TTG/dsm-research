@@ -150,14 +150,24 @@ the pointer references an unsigned value).
       ```
 
 ##### Patching validation
-After finding the method, its beginning can be patched with `RET` (`0xC3`) and fill with `NOP` (`0x90`) to the replaced 
-instruction boundary.
+After finding the method, its beginning can be patched with `RET` (`0xC3`).
 
-  - **DS3615xs** with **25556** kernel
+  - **DS3615xs** with **25556** kernel  
+    Patch the first instruction and fill with `NOP` (`0x90`) to the replaced instruction boundary.
     ```
     66 81 3d 86 3d 09 00 08 02    CMP word ptr [<boot_params....>],0x208
                =to=
     c3 90 90 90 90 90 90 90 90    RET, NOP*8
     ```
-  
-    
+
+  - ~~**DS918+** with **25556** kernel~~  
+    ***(WARNING: this patch seems to cause random KP - investigation in progress)***    
+    Find the CMP instruction (which is unique in the binary) and patch `PUSH RBP` (`0x55`) before it to `RET` (`0x90`). 
+    ```
+    55                            PUSH RBP
+    66 81 3d 4e ee 09 00 08 02    CMP word ptr [<boot_params....>],0x208
+               =to=
+    90                            RET
+    66 81 3d 4e ee 09 00 08 02    CMP word ptr [<boot_params....>],0x208
+    ```
+

@@ -108,3 +108,14 @@ Requires a ([tricky binary patching](README.md#kernel-binary-patching)).
     ```
     //tbd (do a diff dumbass since you've lost the patch)
     ```
+
+  - **DS918+** with **25556** kernel  
+    You can use `tools/patch-ramdisk-check.php` to autopatch this one.
+    ```
+    74 17                   JZ   LAB_ffffffff81893775    ; ramdisk check OK
+    48 c7 c7 a2 71 71 81    MOV  RDI,0xffffffff817171a2  ; ramdisk corrupt str.
+               =to=
+    eb 17                   JMP  LAB_ffffffff81893775    ; ramdisk check always OK
+    48 c7 c7 a2 71 71 81    MOV  RDI,0xffffffff817171a2  ; ramdisk corrupt str.
+    ```
+
