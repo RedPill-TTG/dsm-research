@@ -63,6 +63,12 @@ List of known quirks (in a recommended to be read order):
    - Loader impact: LKM shim or user-mode workaround 
    - Kernel options: N/A
 
+9. [**PCI configuration**](pci.md)
+   - Type: hw feature, sanity check
+   - Understood: yes
+   - Loader impact: LKM emulator
+   - Kernel options: N/A
+
 
 
 ### Generic notes
