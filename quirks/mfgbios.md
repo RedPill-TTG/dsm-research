@@ -124,10 +124,11 @@ GPL it is open sourced. However, even if the [headers aren't copyrightable anywa
 
 Additionally, as @Vortex pointed out, the newly-released DSMv7.0 dev toolkit contains the full `synobios_ops` structure.
 It contains not only the list but also function declarations making the identification easier. You can find it in e.g.
-`ds.broadwell-7.0.env.txz/usr/local/include/synobios/synobios.h`:
+`ds.broadwell-7.0.dev.txz/usr/local/include/synobios/synobios.h`:
 
 ```C
 //Formatting adjusted here
+// Copyright (c) 2000-2003 Synology Inc. All rights reserved.
 struct synobios_ops {
     struct module   *owner;
     int	    (*get_brand)(void);
