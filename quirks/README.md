@@ -33,9 +33,9 @@ List of known quirks (in a recommended to be read order):
     - Loader impact: kernel binpatch
     - Kernel options: N/A
 
-6. [**Bootloader header**](bootloader-header.md)
-    - Type: ?
-    - Understood: no
+6. [**`boot_params` Validation**](boot_params-validation.md)
+    - Type: integrity verification
+    - Understood: partially
     - Loader impact: kernel binpatch
     - Kernel options: N/A
 
