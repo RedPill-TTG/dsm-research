@@ -21,8 +21,8 @@ redesign the board, so they decided on a new kernel flag.
 
 
 ### What this does to the system?
-It looks like to be more of an annoyance rather than a problem. In essence all kernel logs will be streamed to `ttyS1`
-instead of `ttyS0`.
+It looks like the swapping is more of an annoyance rather than a problem. In essence all kernel logs will be streamed to 
+`ttyS1` instead of `ttyS0`.
 
 If UARTs are not swapped back you will see the following on the first serial port upon boot:
   ```
@@ -46,7 +46,45 @@ while the second one will show:
   //boot continues
   ```
 
-### Implementation
+
+**However** there's more serial modifications than just swapping.
+
+Jun's loader does the swap them but does it less than ideally. The table below shows the summary:
+
+| Platform   | Earlycon Set | Earlycon Out | BIOS Set      | BIOS Out | Console Set | Console Out |
+|------------|--------------|--------------|---------------|----------|-------------|-------------|
+| 918 (nat)  |  0x3f8 (1st) |     1st ✅   | serial1 (2nd) |   2nd ✅ | ttyS2 (3rd) |    3rd ✅  |
+| 918 (nat)  |  0x3f8 (1st) |     1st ✅   | serial1 (2nd) |   2nd ✅ | ttyS0 (3rd) |  missing ❌   |
+| 918 (Jun)  |  0x3f8 (1st) |   missing ❌ | serial1 (2nd) |    n/a   | ttyS0 (1st) |    1st ✅   |
+| 3615 (nat) |  0x3f8 (1st) |     1st ✅   | serial1 (2nd) |   1st ❌ | ttyS0 (1st) |    2nd ❌  |
+| 3615 (Jun) |  0x3f8 (1st) |     1st ✅   | serial1 (2nd) |    n/a   | ttyS0 (1st) |  2nd => 1st |
+
+Notes:
+  - Running native on 918 with 3 separate ports works as expected
+  - Running native on 918 works as long as we don't touch ttyS0 beyond earlycon. 8250 driver has syno modifications in
+    the kernel. This is most likely the culprit of why the ttyS0 and ttyS1 are broken (ttyS0 is not even detected by the
+    kernel):
+    ```
+     //booting with console= set to ttyS0 
+     [   28.842864] calling  serial8250_init+0x0/0x15f @ 1
+     [   28.843535] Serial: 8250/16550 driver, 4 ports, IRQ sharing enabled
+     [   33.221054] serial8250: ttyS1 at I/O 0x2f8 (irq = 3, base_baud = 115200) is a 16550A
+     [   33.977563] console [ttyS0] enabled
+     [   33.978163] bootconsole [uart0] disabled
+     //no further output is produced on 1st serial port
+    ```
+    So the effect is no console anywhere as ttyS0 is never initialized.
+  - Jun's loader doesn't display any mfgBIOS output as it's captured
+  - Jun's loader breaks earlycon in 918 for some unknown reason (output is empty until proper console kicks in)
+  - Running native on 3615 is strange due to 1st and 2nd serial being swapped. This doesn't affect earlycon because it
+    doesn't use the ttyS* addressing but specifies `0x3f8` address directly.
+  - Jun's loader swaps 3615 ports but it can only do that pretty late (as an LKM is loaded much later than console is
+    initialized). This creates a strange effect where earlycon works as expected on 1st serial, then we get SOME of the
+    kernel output on the 2nd serial (time between earlycon => console switching and LKM loading) and then it's switched
+    back to 1st (as the ports are flipped)
+
+
+### Implementation of swapping
 Normally, on x86 serial ports are specified as follows in 
 [`arch/x86/include/asm/serial.h`](https://github.com/torvalds/linux/blob/5bfc75d92efd494db37f5c4c173d3639d4772966/arch/x86/include/asm/serial.h#L23):
   ```C
@@ -84,6 +122,14 @@ Yup, it does exactly that - swaps addresses of `ttyS0` (`0x3F8`) and `ttyS1` (`0
 While this is just a minor annoyance during debugging, for consistency a decent loader should swap them back. On real
 hardware the physical first UART is always the console and the second is always the PMU.
 
-Jun's loader does the swap them + updates the kernel tty in cmdline.
+Jun's loader does the following things with serials:
+ - On v4 fixes `/dev/ttyS0` to point to a real `0x3f8` port using `early_serial_setup()` (as it's broken by syno stuff)
+ - Removes a real `/dev/ttyS1` and mocks it in software for PMU emulation (so you will never get anything on 2nd serial)
+ - On platforms with swapped serials it partially swaps them back:
+   - changes `ttyS1` to `ttyS0` in kernel console drivers by altering `console_drivers` (exported symbol)
+   - calls `update_console_cmdline()` to fix early console assignment
+   - it does NOT fully swap `ttyS0` and `ttyS1` so that printing to `echo 123 > /dev/ttyS0` still prints on 2nd serial.
+     There's no good way to achieve that. Since both serials are occupied by the OS stuff there's no real point of doing
+     this anyway.
 
-For more details regarding implementation see https://github.com/RedPill-TTG/redpill-lkm docs & code.
+See https://github.com/RedPill-TTG/redpill-lkm/blob/master/shim/uart_fixer.c for details.
