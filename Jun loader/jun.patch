@@ -1,0 +1,256 @@
+diff --git a/etc/passwd b/etc/passwd
+index 6a0344d..cf95fbd 100644
+--- a/etc/passwd
++++ b/etc/passwd
+@@ -1,4 +1,4 @@
+-root:x:0:0::/root:/bin/ash
++root::0:0::/root:/bin/ash
+ system:x:1:1::/usr/syno/synoman:/usr/bin/nologin
+ daemon:x:2:2::/:/bin/sh
+ lp:x:7:7::/var/spool/lpd:/bin/sh
+diff --git a/etc/rc b/etc/rc
+index e706c59..2d29b47 100755
+--- a/etc/rc
++++ b/etc/rc
+@@ -163,6 +163,8 @@ if [ "$PLATFORM" = "grantley" ]; then
+ fi
+
+ SYNOLoadIPv6
++. /etc.defaults/rc.modules
++KERNEL_MODULES="${KERNEL_MODULES} ${EXTRA_MODULES}"
+ SYNOLoadModules ${KERNEL_MODULES}
+ SYNOLoadAdt7490
+ SoftLink7490fanInput
+diff --git a/etc/synoinfo.conf b/etc/synoinfo.conf
+index 3536bde..f158b28 100755
+--- a/etc/synoinfo.conf
++++ b/etc/synoinfo.conf
+@@ -276,7 +276,6 @@ support_disk_performance_test="yes"
+ support_share_quota="yes"
+ support_dr_snap="yes"
+ support_performance_event="yes"
+-supportadt7490="yes"
+ support_hotspare="yes"
+ vpn_conn_max="30"
+ buzzeroffen="0x9f"
+ -maxdisks="12"
++maxdisks="15"
+-internalportcfg="0xfff"
++internalportcfg="0x78FF"
+-esataportcfg="0x1000"
++esataportcfg="0x0"
+-usbportcfg="0xffe000"
++usbportcfg="0x8700"
+diff --git a/linuxrc.syno b/linuxrc.syno
+index 78583d2..a8f641b 100755
+--- a/linuxrc.syno
++++ b/linuxrc.syno
+@@ -37,12 +37,48 @@ USB_MODULES="${USB_MODULES} etxhci-hcd" # for Etron USB3.0
+ SupportSAS=`/bin/get_key_value $SYNOINFO_DEF supportsas`
+ SupportDualhead=`/bin/get_key_value $SYNOINFO_DEF support_dual_head`
+
++FixSynoboot()
++{
++	tail -n+3 /proc/partitions | while read major minor sz name
++	do
++		if echo $name | grep -q "^sd[[:alpha:]]*$";then
++			basename=$name
++			minor0=$minor
++			synoboot1=""
++			synoboot2=""
++			continue
++		fi
++		if [ $name = "${basename}1" -a $sz -le 512000 ]; then
++			synoboot1="$name"
++			minor1=$minor
++		elif [ $name = "${basename}2" -a $sz -le 512000 ]; then
++			synoboot2="$name"
++			minor2=$minor
++		else
++			continue
++		fi
++		if [ -n "$synoboot1" -a -n "$synoboot2" ]; then
++			rm "/dev/$basename"
++			rm "/dev/$synoboot1"
++			rm "/dev/$synoboot2"
++			# leave other partitions as is for now
++			mknod /dev/synoboot b $major $minor0
++			mknod /dev/synoboot1 b $major $minor1
++			mknod /dev/synoboot2 b $major $minor2
++			break
++		fi
++	done
++}
++
+ Exit()
+ {
+ 	if [ -n "$2" ]; then
+ 		echo "Exit on error [$1] $2..."
+ 	fi
+
++	sleep 2
++	[ -e /dev/synoboot ] || FixSynoboot
++
+ 	# show date for login info
+ 	date
+
+@@ -80,6 +116,9 @@ fi
+ # insert basic USB modules for detect f401/FDT
+ echo "Insert basic USB modules..."
+ SYNOLoadModules $USB_MODULES
++SYNOLoadModules "usb-storage"
++. /etc.defaults/rc.modules
++SYNOLoadModules $DISK_MODULES
+
+ #insert net driver(Mindspeed only)
+ echo "Insert net driver(Mindspeed only)..."
+@@ -345,8 +384,11 @@ fi
+ # check if upgrade
+ #
+ if [ 0 -eq $FsckFailed ]; then
+-    echo '------------upgrade'
+-    /bin/sh /usr/syno/sbin/upgrade.sh
++    if echo '------------upgrade';then
++        /bin/sh /usr/syno/sbin/upgrade.sh
++    else
++        /bin/sh /usr/syno/sbin/upgrade.sh > /dev/null
++    fi
+ 	if [ $? -ne 0 ]; then
+ 		touch /.untar_upgrade_file_failed
+ 		Exit 6 "upgrade failed"
+diff --git a/usr/sbin/init.post b/usr/sbin/init.post
+index 17fd86d..b515d25 100755
+--- a/usr/sbin/init.post
++++ b/usr/sbin/init.post
+@@ -21,6 +21,126 @@ done
+
+ mount $RootDevice /tmpRoot -o barrier=1
+
++RC_MODULES=/etc.defaults/rc.modules
++RC_EXTRAS=""
++WL_MODULES=""
++WL_FIRMWARES=""
++OPTIONAL_MODULES=""
++
++if ! fgrep -q "$RC_MODULES" /tmpRoot/etc/rc; then
++	/tmpRoot/usr/bin/sed -i '/^SYNOLoadModules \${KERNEL_MODULES}$/{$!{N;s/^.*\n\SYNOLoadAdt7490$/&/ ;t i;P;D;:i
++i . '"$RC_MODULES"'
++i KERNEL_MODULES="${KERNEL_MODULES} ${EXTRA_MODULES}"
++}}' /tmpRoot/etc/rc
++fi
++
++if ! fgrep -q "$RC_MODULES" /tmpRoot/etc.defaults/rc; then
++	/tmpRoot/usr/bin/sed -i '/^SYNOLoadModules \${KERNEL_MODULES}$/{$!{N;s/^.*\n\SYNOLoadAdt7490$/&/ ;t i;P;D;:i
++i . '"$RC_MODULES"'
++i KERNEL_MODULES="${KERNEL_MODULES} ${EXTRA_MODULES}"
++}}' /tmpRoot/etc.defaults/rc
++fi
++
++if ! fgrep -q '_modpath=/lib/modules/update/${_mod}${_suffix}' /tmpRoot/etc/rc.subr; then
++	/tmpRoot/usr/bin/sed -i '\%^\t\t_modpath=/lib/modules/${_mod}${_suffix}%{
++	i\	\	_modpath=/lib/modules/update/${_mod}${_suffix}
++	i\	\	[ -f "$_modpath"  ] ||
++	}' /tmpRoot/etc/rc.subr
++fi
++
++if ! fgrep -q '_modpath=/lib/modules/update/${_mod}${_suffix}' /tmpRoot/etc.defaults/rc.subr; then
++	/tmpRoot/usr/bin/sed -i '\%^\t\t_modpath=/lib/modules/${_mod}${_suffix}%{
++	i\	\	_modpath=/lib/modules/update/${_mod}${_suffix}
++	i\	\	[ -f "$_modpath"  ] ||
++	}' /tmpRoot/etc.defaults/rc.subr
++fi
++
++/tmpRoot/usr/bin/cmp -s "$RC_MODULES" "/tmpRoot/$RC_MODULES" ||
++        cp "$RC_MODULES" "/tmpRoot/$RC_MODULES"
++
++. $RC_MODULES
++
++
++# $1 src, $2 dst, $3 shortname
++_cp_mod()
++{
++	local dest="/tmpRoot/$2"
++	[ -f "$1" ] || return 1
++	/tmpRoot/usr/bin/cmp -s "$1" "$dest" && return 2
++
++	if [ -f "$dest" ]; then
++		echo "Updating $dest..."
++	else
++		[ "x$1" != "x$2" -a -f "/tmpRoot/$1" ] &&
++			/tmpRoot/usr/bin/cmp -s "$1" "/tmpRoot/$1" &&
++			return 3
++		echo "Installing $dest..."
++                local d=`dirname "$dest"`
++                [ -d "$d"  ] || mkdir -p "$d" || return 4
++	fi
++	cp -a "$1" "$dest"
++}
++
++# should modify module to avoid overwrite firmware
++# otherwise there is no good way to update firmware
++_cp_fw()
++{
++	local dst="/tmpRoot/$2"
++	/tmpRoot/usr/bin/cmp -s "$1" "$dst" && return 1
++        if [ -f "$dst"  ]; then
++                echo "Updating $dst..."
++        else
++                local d=`dirname "$dst"`
++                [ -d "$d"  ] || mkdir -p "$d" || return 2
++                echo "Installing $dst..."
++        fi
++        cp -a "$1" "/tmpRoot/$2"
++}
++
++for mod in $DISK_MODULES $EXTRA_MODULES $OPTIONAL_MODULES; do
++	src=/usr/lib/modules/${mod}.ko
++	dest=/usr/lib/modules/update/${mod}.ko
++	_cp_mod $src $dest
++	#echo "install $mod returns $?"
++done
++
++for fw in $EXTRA_FIRMWARES; do
++	path=/usr/lib/firmware/${fw}
++	_cp_fw $path $path
++	#echo "install $fw returns $?"
++done
++
++#$1 pattern, $2 path
++_del()
++{
++	if grep -q "$1" "$2";then
++		/tmpRoot/usr/bin/sed -i "$2" -e "/$1/ d"
++	fi
++}
++
++_del 'supportadt7490="yes"' /tmpRoot/etc.defaults/synoinfo.conf
++
++#$1 pattern, $2 replace, $3 path
++_replace()
++{
++	if grep -q "$1" "$3";then
++		/tmpRoot/usr/bin/sed -i "$3" -e "s/$1/$2/"
++	fi
++}
++
++_replace 'esataportcfg="ff000"' 'esataportcfg="0x0"' /tmpRoot/etc.defaults/synoinfo.conf
++_replace 'usbportcfg="0x300000"' 'usbportcfg="0x8700"' /tmpRoot/etc.defaults/synoinfo.conf
++_replace 'internalportcfg="0xfff"' 'internalportcfg="0x78FF"' /tmpRoot/etc.defaults/synoinfo.conf
++_replace 'maxdisks="12"' 'maxdisks="15"' /tmpRoot/etc.defaults/synoinfo.conf
++
++UPSTART="/tmpRoot/usr/share/init"
++
++if ! echo; then
++	_replace '^start on' '#start on' $UPSTART/tty.conf
++	_replace "console output" "console none" $UPSTART/syno_poweroff_task.conf
++	_replace "console output" "console none" $UPSTART/burnin_loader.conf
++	_replace "console output" "console none" $UPSTART/udevtrigger.conf
++	_replace "console output" "console none" $UPSTART/bs-poweroff.conf
++	_replace "console output" "console none" $UPSTART/udevd.conf
++else
++	_replace '^#start on' 'start on' $UPSTART/tty.conf
++fi
++
+ mkdir -p /tmpRoot/initrd
+
+ umount /proc &> /dev/null

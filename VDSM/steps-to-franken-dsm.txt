@@ -1,0 +1,130 @@
+************************************************************
+*** This is a brain-dump of how to prepare a franken-DSM ***
+***         For details please see franken-dsm.md        ***
+************************************************************
+
+1. get VDSM PAT
+2. unpack vdsm pat
+3. unpack synoboot from it (synology_kvmx64_virtualdsm_25556_91803D68__.bin.zip) to synoboot-synology_kvmx64_virtualdsm_25556_91803D68__.bin
+3a. add BIOS partition? => not needed most likely
+  dd if=/dev/zero bs=1M count=10 >> ./synoboot-synology_kvmx64_virtualdsm_25556_91803D68__.bin
+  fdisk ./synoboot-synology_kvmx64_virtualdsm_25556_91803D68__.bin
+  n
+  p
+  3
+  [make it 8159 sectors; most likely end sector will be 233439]
+  w
+  q [if needed]
+
+4. losetup -f -P ./synoboot-synology_kvmx64_virtualdsm_25556_91803D68__.bin
+5. mount /dev/loop0p1 /mnt/_tmp
+6. nano /mnt/_tmp/boot/grub/grub.conf
+
+Comment-out "terminal serial"
+Comment-out "hiddenmenu"
+Add "timeout_style=menu"
+Add entry:
+
+title FRANKEN_DSM
+        root (hd0,0)
+        kernel /zImage root=/dev/md0 ihd_num=0 netif_num=1 syno_hw_version=DS3617xs macs=0011320C3701 vender_format_version=2 console=ttyS0 sn=1130ODN002064
+        initrd /rd.gz
+
+7. Patch ramdisk
+
+mkdir -p /home/ttg/dsm-research/franken-dsm/rd
+
+# UNPACK
+cd /home/ttg/dsm-research/franken-dsm/rd ; xz -dc < /mnt/_tmp/rd.gz | cpio -idmv
+
+# INIT
+nano linuxrc.syno
+Comment-out this if [don't forget the "fi" at the end idiot]:
+<if [ "$UniqueRD" = "kvmx64" -o \
+<                "$UniqueRD" = "nextkvmx64" -o \
+<                "$UniqueRD" = "kvmcloud" ]; then
+printf '#!/bin/sh\ncat /proc/sys/kernel/syno_serial\n' > ./usr/syno/bin/synovdsmserial
+printf '#!/bin/sh\nexit 1\n' > ./usr/syno/bin/synovdsmtool
+printf '#!/bin/sh\nexit 1\n' > ./usr/syno/bin/synoguestcommd
+printf '#!/bin/sh\nexit 1\n' > ./usr/syno/bin/synoguestcmdd
+printf '#!/bin/sh\nexit 0\n' > ./usr/syno/bin/syno_pstore_collect
+chmod +x ./usr/syno/bin/syno_pstore_collect
+nano ./etc/passwd => remove root password (root:x: => root::)
+cp /home/ttg/dsm-research/franken-dsm/synoinfo-ds3617xs-franken.conf ./etc/synoinfo.conf
+
+# don't do, alternative below
+#nano ./usr/syno/sbin/installer.sh
+#    Find "if [ "$SYNOBIOS" = "kvmx64" -o" and comment-out the whole if
+change "SYNOBIOS" to be ==>>> SYNOBIOS="broadwell"
+
+nano ./etc/rc => find "if [ "kvmx64" ==" and comment-out that if/fi (leaving NET_DRIVERS enabled
+
+
+# COPY MISSING FROM DS
+cp /home/ttg/dsm-research/DSM_DS3617xs_25556/rd/etc/VERSION ./etc/VERSION
+cp /home/ttg/dsm-research/DSM_DS3617xs_25556/rd/usr/syno/bin/scemd ./usr/syno/bin/scemd
+cp /home/ttg/dsm-research/DSM_DS3617xs_25556/rd/usr/syno/bin/synosearchagent ./usr/syno/bin/synosearchagent
+
+# PATCH BIOS UPDATE
+=> TODO method to stop bios update from being triggered and screwing up the install
+=> currently the hack is to run the following before starting install:
+    rm /tmp/checksum.syno.tmp
+    while [ ! -f /tmp/checksum.syno.tmp ]; do true; done; rm '/tmpData/upd@te/bios.ROM'
+
+# FIX CONSOLE
+add the following to ./usr/sbin/init.post (After mount w/ barrier)
+
+        _del()
+        {
+            if grep -q "$1" "$2";then
+                /tmpRoot/usr/bin/sed -i "$2" -e "/$1/ d"
+            fi
+        }
+
+        _del 'supportadt7490="yes"' /tmpRoot/etc.defaults/synoinfo.conf
+
+
+        #$1 pattern, $2 replace, $3 path
+        _replace()
+        {
+            if grep -q "$1" "$3";then
+                /tmpRoot/usr/bin/sed -i "$3" -e "s/$1/$2/"
+            fi
+        }
+
+        UPSTART="/tmpRoot/usr/share/init"
+
+        if ! echo; then
+            _replace '^start on' '#start on' $UPSTART/tty.conf
+            _replace "console output" "console none" $UPSTART/syno_poweroff_task.conf
+            _replace "console output" "console none" $UPSTART/burnin_loader.conf
+            _replace "console output" "console none" $UPSTART/udevtrigger.conf
+            _replace "console output" "console none" $UPSTART/bs-poweroff.conf
+            _replace "console output" "console none" $UPSTART/udevd.conf
+        else
+            _replace '^#start on' 'start on' $UPSTART/tty.conf
+        fi
+
+
+# PACK BACK
+cd /home/ttg/dsm-research/franken-dsm/rd ; find . 2>/dev/null | cpio -o -H newc -R root:root | xz -9 --format=lzma > /mnt/_tmp/rd.gz
+
+7. umount /mnt/_tmp
+
+
+
+
+---
+Random useful commands:
+
+date -s 2021.08.02-03:31
+tail -f /var/log/* /tmp/installer_sh.log
+
+mdadm --verbose -C /dev/md0 -e 0.9 -amd -R -l1 --force -n1 /dev/sda1
+mdadm --grow /dev/md0 -n12 --force
+mdadm --verbose -C /dev/md1 -e 0.9 -amd -R -l1 --force -n1 /dev/sda2
+mdadm --grow /dev/md1 -n12 --force
+
+
+
+
