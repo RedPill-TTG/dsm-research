@@ -73,7 +73,7 @@ There is also the SATA boot device support - it gets checked based on the vendor
 
 Some details:
   - `gSynoBootSATADOM` is set based on `synoboot_satadom` [kernel cmdline param](dsm-kernel-params.md)
-  - Only some models are expected to use SATA DOM (Disk-on-Module)
+  - Only some models are expected to use SATA DOM (Disk-on-Module) which is controlled by `CONFIG_SYNO_BOOT_SATA_DOM`
   - Different DS models use different disk modules, so that their `CONFIG_SYNO_SATA_DOM_VENDOR` and
     `CONFIG_SYNO_SATA_DOM_MODEL` are different 
 
@@ -88,11 +88,16 @@ Example of a configuration for `bromolow` platform:
 
 
 ### What this does to the system?
-If a proper `DISK_SYNOBOOT` is not found the OS will not even boot properly. We didn't analyze the exact details.
+If a proper `DISK_SYNOBOOT` is not found the OS will not even boot properly. During attempted install it will cause
+an infamous [Error 13](error13.md).
 
 
 ### How does it play with loaders?
-In essence the process to work around that is as such:
+The loader must take care to present the boot drive so that it satisfies checks to be marked as `SYNO_DISK_SYNOBOOT`. 
+This designation cannot really be applied after the drive finishes probing. This is because even if the type is altered
+in the SCSI drivers structure the `/dev` entry will stay incorrect.
+
+To process for ensuring correct type for **USB** device:
 
   1. Register loader LKM as quickly as possible
   2. Register for notifications using `register_module_notifier() `to get notified when a new module is loaded into the 
@@ -111,7 +116,29 @@ The last point is a straight race condition. Normally you avoid it like a fire -
 approach (sort of like RGH on Xbox 360 ;)). This is why on slower single-core machines that hack may fail and even 
 [Jun warned about that](https://xpenology.com/forum/topic/6253-dsm-61x-loader/).
 
-The only quirk which seems to be mentioned [even by Jun](https://xpenology.com/forum/topic/6253-dsm-61x-loader/) and
+
+To process for ensuring correct type for **SATA** device:
+
+  1. Register loader LKM as quickly as possible
+  2. Find SCSI subsystem driver
+  3. Replace probing function (`sd_probe()`) with a custom one
+     1. The custom function will be called for every **new** device
+     2. SATA disk matching some criteria can be then altered to have the correct vendor/model
+     3. Call original `sd_probe()` and let the OS handle the rest
+  4. Iterate over existing devices and check for matches
+     1. This is needed because SCSI is usually not a module so we cannot load before it (but after OR during)
+     2. If device matches shimming criteria kick remove the device (=simulated unplug)
+     3. Rescan all ports on the SCSI host who got the drive removed
+
+Jun's loader does *not* use this process. Instead, it relies on user-land hack (rename `/dev/sdX` nodes to 
+`/dev/synoboot` nodes). However, this has many disadvantages:
+
+  - easy to detect by DSM
+  - unstable in v7
+  - leaves 50MB pseudo-disk visible in the DSM UI (can be worked around by "pushing" the disk beyond number of supported
+    disks)
+
+The only quirk with all that, mentioned [even by Jun](https://xpenology.com/forum/topic/6253-dsm-61x-loader/) and
 followed by Synology in their [VDSM](../VDSM/vdsm-investigation.md) is that a drive which is designated as 
 `DISK_SYNOBOOT` must contain at least 2 partitions.
 
