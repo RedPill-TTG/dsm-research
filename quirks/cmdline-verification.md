@@ -23,4 +23,4 @@ only do the former and removes all options defined in the loader (see [his loade
 Most likely only the options which aren't REALLY possible on a given hardware should be removed (e.g. `SasIdxMap=` on a 
 DS without SAS) + all custom ones (e.g. `vid=`).
 
-For more details regarding implementation see https://github.com/RedPill-TTG/redpill-lkm docs & code.
+See https://github.com/RedPill-TTG/redpill-lkm/blob/master/internal/stealth/sanitize_cmdline.c for details.
