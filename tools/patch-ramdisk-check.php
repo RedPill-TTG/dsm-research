@@ -133,7 +133,7 @@ if ($jz[0] !== "\x74") {
 }
 
 $jzp = "\xEB" . $jz[1];
-perr('OK - patching ' . bin2hex($jz) . " to " . bin2hex($jzp) . " @ $jzPos\n");
+perr('OK - patching ' . bin2hex($jz) . " (JZ) to " . bin2hex($jzp) . " (JMP) @ $jzPos\n");
 fseek($fp, $jzPos); //we should be here already
 perr("Wrote " . fwrite($fp, $jzp) . " bytes to memory\n");
 
