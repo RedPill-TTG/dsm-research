@@ -7,7 +7,7 @@ level stuff and high-level things like the web panel.
 
 ### What this does to the system?
 Due to the closed-source nature of the module everything is a suspicion. However, lack of many of the interfaces will 
-surely make the later layers (i.e. the whole DSM) unhappy. Immediatelly after the module loads kernel log is being 
+surely make the latter layers (i.e. the whole DSM) unhappy. Immediatelly after the module loads kernel log is being 
 filled with:
 
 ```
@@ -46,6 +46,9 @@ ffffffffa01dd340 t DS3615xsInitModuleType	[bromolow_synobios]
 ffffffffa01dd410 t DS3611xsInitModuleType	[bromolow_synobios]
 ffffffffa01dd570 t DS2414xsInitModuleType	[bromolow_synobios]
 ```
+
+Additionally, many parts of the system use `ioctl` to communicate with the `/dev/synobios` device to perform various
+actions. See 
 
 ### How does it play with loaders?
 Based on the analysis of Jun's module and symbols provided by the bios module itself we can find a table in memory. The
@@ -116,7 +119,8 @@ modules are loaded and how certain parts of kernel's memory are protected (from 
 
 See https://github.com/RedPill-TTG/redpill-lkm/blob/master/shim/bios_shim.c for details.
 
-#### Appendix: official `synobios_ops` structure
+### Appendices
+#### Appendix A: official `synobios_ops` structure
 
 While Synobios itself isn't GPLed it actually used to open source. Intentionally or not Synology included its full
 source with some of their releases. See more in the [GPL section](gpl.md). While the code is not explicitly marked as
@@ -127,7 +131,7 @@ It contains not only the list but also function declarations making the identifi
 `ds.broadwell-7.0.dev.txz/usr/local/include/synobios/synobios.h`:
 
 ```C
-//Formatting adjusted here
+// Formatting adjusted here
 // Copyright (c) 2000-2003 Synology Inc. All rights reserved.
 struct synobios_ops {
     struct module   *owner;
@@ -187,4 +191,109 @@ struct synobios_ops {
     int	    (*get_sys_current)(unsigned long*);
     int     (*get_disk_intf)(SYNO_DISK_INTF_INFO *);
 };
+```
+
+#### Appendix B: ioctl control over `synobios`
+Userland applications don't usually communicate with the hardware directly but ask the `/dev/synobios` to perform a
+certain subset of actions. These actions are performed via `ioctl` mechanism. All commands are specified in a userland
+header file `synobios/synobios.h`, available in `.dev` toolkits (e.g. `ds.broadwell-7.0.dev.txz`) under
+`usr/local/include/synobios/synobios.h`:
+
+```
+// Formatting adjusted here
+// Extracted using: grep -E '_IO(R|W|WR)?\(' './usr/local/include/synobios/synobios.h'
+// Copyright (c) 2000-2003 Synology Inc. All rights reserved
+
+#define SYNOIO_EXDISPLAY             _IOWR(SYNOBIOS_IOC_MAGIC, 1, struct _SynoMsgPkt)
+#define SYNOIO_NEXTEVENT             _IOWR(SYNOBIOS_IOC_MAGIC, 2, u_int)
+#define SYNOIO_RTC_CONTROL_READ      _IOWR(SYNOBIOS_IOC_MAGIC, 3, struct _SynoRtcControlPkt)
+#define SYNOIO_RTC_CONTROL_WRITE     _IOWR(SYNOBIOS_IOC_MAGIC, 4, struct _SynoRtcControlPkt)
+#define SYNOIO_RTC_TIME_READ         _IOWR(SYNOBIOS_IOC_MAGIC, 5, struct _SynoRtcTimePkt)
+#define SYNOIO_RTC_TIME_WRITE        _IOWR(SYNOBIOS_IOC_MAGIC, 6, struct _SynoRtcTimePkt)
+#define SYNOIO_BUTTON_POWER          _IOWR(SYNOBIOS_IOC_MAGIC, 7, int)
+#define SYNOIO_BUTTON_RESET          _IOWR(SYNOBIOS_IOC_MAGIC, 8, int)
+#define SYNOIO_BUTTON_USB            _IOWR(SYNOBIOS_IOC_MAGIC, 9, int)
+#define SYNOIO_SET_DISK_LED          _IOWR(SYNOBIOS_IOC_MAGIC, 10, DISKLEDSTATUS)
+#define SYNOIO_GET_FAN_STATUS        _IOWR(SYNOBIOS_IOC_MAGIC, 11, FANSTATUS)
+#define SYNOIO_SET_FAN_STATUS        _IOWR(SYNOBIOS_IOC_MAGIC, 12, FANSTATUS)
+#define SYNOIO_GET_DS_MODEL          _IOWR(SYNOBIOS_IOC_MAGIC, 13, int)
+#define SYNOIO_GET_DS_BRAND          _IOWR(SYNOBIOS_IOC_MAGIC, 14, int)
+#define SYNOIO_GET_CPLD_VERSION      _IOWR(SYNOBIOS_IOC_MAGIC, 15, int)
+#define SYNOIO_GET_TEMPERATURE       _IOWR(SYNOBIOS_IOC_MAGIC, 16, int)
+#define SYNOIO_GET_CPLD_REG          _IOWR(SYNOBIOS_IOC_MAGIC, 17, CPLDREG)
+#define SYNOIO_GET_AUTO_POWERON      _IOWR(SYNOBIOS_IOC_MAGIC, 18, SYNO_AUTO_POWERON)
+#define SYNOIO_SET_AUTO_POWERON      _IOWR(SYNOBIOS_IOC_MAGIC, 19, SYNO_AUTO_POWERON)
+#define SYNOIO_GET_MEM_BYTE          _IOWR(SYNOBIOS_IOC_MAGIC, 20, MEMORY_BYTE)
+#define SYNOIO_SET_MEM_BYTE          _IOWR(SYNOBIOS_IOC_MAGIC, 21, MEMORY_BYTE)
+#define SYNOIO_SET_ALARM_LED         _IOWR(SYNOBIOS_IOC_MAGIC, 22, unsigned char)
+#define SYNOIO_GET_HW_CAPABILITY     _IOWR(SYNOBIOS_IOC_MAGIC, 23, CAPABILITY)
+#define SYNOIO_GET_FAN_NUM           _IOWR(SYNOBIOS_IOC_MAGIC, 24, int)
+#define SYNOIO_GET_POWER_STATUS      _IOWR(SYNOBIOS_IOC_MAGIC, 25, POWER_INFO)
+#define SYNOIO_SHUTDOWN_LOG          _IOWR(SYNOBIOS_IOC_MAGIC, 26, SYNO_SHUTDOWN_LOG)
+#define SYNOIO_UNINITIALIZE          _IOWR(SYNOBIOS_IOC_MAGIC, 27, int)
+#define SYNOIO_GET_SYS_STATUS        _IOWR(SYNOBIOS_IOC_MAGIC, 28, SYNO_SYS_STATUS)
+#define SYNOIO_SET_SYS_STATUS        _IOWR(SYNOBIOS_IOC_MAGIC, 29, sys_comp_stat_t)
+#define SYNOIO_GET_MODULE_TYPE       _IOWR(SYNOBIOS_IOC_MAGIC, 30, module_t)
+#define SYNOIO_GET_BUZZER_CLEARED    _IOWR(SYNOBIOS_IOC_MAGIC, 31, unsigned char)
+#define SYNOIO_GET_BACKPLANE_STATUS  _IOWR(SYNOBIOS_IOC_MAGIC, 32, BACKPLANE_STATUS)
+#define SYNOIO_SET_UART2             _IOWR(SYNOBIOS_IOC_MAGIC, 33, unsigned char)
+#define SYNOIO_GET_CPU_TEMPERATURE   _IOWR(SYNOBIOS_IOC_MAGIC, 34, SYNOCPUTEMP)
+#define SYNOIO_SET_CPU_FAN_STATUS    _IOWR(SYNOBIOS_IOC_MAGIC, 35, FANSTATUS)
+#define SYNOIO_SET_PHY_LED           _IOWR(SYNOBIOS_IOC_MAGIC, 36, SYNO_LED)
+#define SYNOIO_SET_HDD_LED           _IOWR(SYNOBIOS_IOC_MAGIC, 37, SYNO_LED)
+#define SYNOIO_SET_PWR_LED           _IOWR(SYNOBIOS_IOC_MAGIC, 38, SYNO_LED)
+#define SYNOIO_PWM_CTL               _IOWR(SYNOBIOS_IOC_MAGIC, 39, SynoPWMCTL)
+#define SYNOIO_CHECK_MICROP_ID       _IO  (SYNOBIOS_IOC_MAGIC, 40)
+//#define SYNOIO_GET_EUNIT_TYPE      _IOR (SYNOBIOS_IOC_MAGIC, 41, EUNIT_PWRON_TYPE) // Move into kernel
+#define SYNOIO_SET_BUZZER_CLEAR      _IOWR(SYNOBIOS_IOC_MAGIC, 42, unsigned char)
+#define SYNOIO_WRITE_MEM             _IOWR(SYNOBIOS_IOC_MAGIC, 43, SYNO_MEM_ACCESS)
+#define SYNOIO_READ_MEM              _IOWR(SYNOBIOS_IOC_MAGIC, 44, SYNO_MEM_ACCESS)
+#define SYNOIO_SET_AHA_LED           _IOWR(SYNOBIOS_IOC_MAGIC, 45, SYNO_AHA_LED)
+#define SYNOIO_GET_COPY_BUTTON       _IOWR(SYNOBIOS_IOC_MAGIC, 46, int) // for matching userspace usage, button pressed = 0, else = 1
+#define SYNOIO_SET_AND_GET_UART2     _IOWR(SYNOBIOS_IOC_MAGIC, 47, unsigned char)
+#define SYNOIO_GET_UART2             _IOWR(SYNOBIOS_IOC_MAGIC, 48, unsigned char)
+#define SYNOIO_UART_DEBUG_CONTROL    _IOWR(SYNOBIOS_IOC_MAGIC, 49, unsigned char)
+#define SYNOIO_GET_SYS_CURRENT       _IOWR(SYNOBIOS_IOC_MAGIC, 50, unsigned long)
+#define SYNOIO_POWER_OFF             _IOWR(SYNOBIOS_IOC_MAGIC, 65, int)
+#define SYNOIO_MANUTIL_MODE          _IOWR(SYNOBIOS_IOC_MAGIC, 128, int)
+#define SYNOIO_RECORD_EVENT          _IOWR(SYNOBIOS_IOC_MAGIC, 129, int)
+#define SYNOIO_GPIO_PIN_READ         _IOWR(SYNOBIOS_IOC_MAGIC, 205, GPIO_PIN)
+#define SYNOIO_GPIO_PIN_WRITE        _IOWR(SYNOBIOS_IOC_MAGIC, 206, GPIO_PIN)
+#define SYNOIO_GPIO_PIN_READ         _IOWR(SYNOBIOS_IOC_MAGIC, 205, int)
+#define SYNOIO_GPIO_PIN_WRITE        _IOWR(SYNOBIOS_IOC_MAGIC, 206, int)
+#define SYNOIO_RTC_READ              _IOWR(SYNOBIOS_IOC_MAGIC, 208, struct _SynoRtcPkt)
+#define SYNOIO_RTC_READ_3            _IOWR(SYNOBIOS_IOC_MAGIC, 209, struct _SynoRtcPkt)
+#define SYNOIO_SDA_SDL_READ          _IOWR(SYNOBIOS_IOC_MAGIC, 210, int)
+#define DISK_BADSECTOR_ON            _IOWR(SYNOBIOS_IOC_MAGIC, 211, int)
+#define DISK_BADSECTOR_OFF           _IOWR(SYNOBIOS_IOC_MAGIC, 212, int)
+#define DISK_BADSECTOR_SET           _IOWR(SYNOBIOS_IOC_MAGIC, 213, struct disk_bs_map_ctlcmd)
+#define DISK_BADSECTOR_GET           _IOWR(SYNOBIOS_IOC_MAGIC, 214, struct disk_bs_map_ctlcmd)
+#define DISK_BADSECTOR_RESET         _IOWR(SYNOBIOS_IOC_MAGIC, 215, int)
+#define HWMON_GET_SUPPORT            _IOWR(SYNOBIOS_IOC_MAGIC, 301, SYNO_HWMON_SUPPORT)
+#define HWMON_GET_CPU_TEMPERATURE    _IOWR(SYNOBIOS_IOC_MAGIC, 302, SYNO_HWMON_SENSOR_TYPE)
+#define HWMON_GET_FAN_SPEED_RPM      _IOWR(SYNOBIOS_IOC_MAGIC, 303, SYNO_HWMON_SENSOR_TYPE)
+#define HWMON_GET_PSU_STATUS         _IOWR(SYNOBIOS_IOC_MAGIC, 304, SYNO_HWMON_SENSOR_TYPE)
+#define HWMON_GET_SYS_VOLTAGE        _IOWR(SYNOBIOS_IOC_MAGIC, 305, SYNO_HWMON_SENSOR_TYPE)
+#define HWMON_GET_SYS_THERMAL        _IOWR(SYNOBIOS_IOC_MAGIC, 306, SYNO_HWMON_SENSOR_TYPE)
+#define HWMON_GET_HDD_BACKPLANE      _IOWR(SYNOBIOS_IOC_MAGIC, 307, SYNO_HWMON_SENSOR_TYPE)
+#define HWMON_GET_SYS_CURRENT        _IOWR(SYNOBIOS_IOC_MAGIC, 308, SYNO_HWMON_SENSOR_TYPE)
+#define SYNOIO_SUPERIO_READ          _IOWR(SYNOBIOS_IOC_MAGIC, 216, SYNO_SUPERIO_PACKAGE)
+#define SYNOIO_SUPERIO_WRITE         _IOWR(SYNOBIOS_IOC_MAGIC, 217, SYNO_SUPERIO_PACKAGE)
+#define SYNOIO_IS_FULLY_SUPPORT_EUP  _IOWR(SYNOBIOS_IOC_MAGIC, 218, SYNO_EUP_SUPPORT)
+#define SYNOIO_SET_OK_TO_REMOVE_LED  _IOWR(SYNOBIOS_IOC_MAGIC, 219, unsigned char)
+#define SYNOIO_CHECK_DISK_INTF       _IOWR(SYNOBIOS_IOC_MAGIC, 220, SYNO_DISK_INTF_INFO)
+#define SYNOIO_HWSTATUS              _IOR ('A', 102, struct _Synohw)
+#define SYNOIO_TESTING               _IOW ('P', 104, int)
+#define SYNOIO_SERIAL                _IOR ('A', 105, int)
+#define SYNOIO_HDBACK                _IOW ('P', 106, int)
+#define SYNOIO_SYNOVER               _IOR ('A', 107, unsigned long)
+#define SYNOIO_GETSERIALNUM          _IOR ('A', 108, off_t)
+#define SYNOIO_SETHWSTATUS           _IOW ('P', 109, HWBLOCK)
+#define SYNOIO_HWHDSUPPORT           _IOR ('A', 110, int)
+#define SYNOIO_HWTHERMALSUPPORT      _IOR ('A', 111, int)
+#define SYNOIO_POWEROFF              _IO  ('A', 114)
+#define SYNOIO_SETHWSTATUS_INIT      _IOW ('P', 111, HWBLOCK)
+#define SYNOIO_HWSTATUS_CUSTOM       _IOR ('A', 112, struct _Synohw_custom)
+#define SYNOIO_SET_EVENT             _IOW ('P', 113, u_int)
+#define SYNOIO_BIOSVER               _IOWR('P', 115, BVS)
 ```
