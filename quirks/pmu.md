@@ -26,7 +26,19 @@ packages (up to 5004?). For example the `synogpl-3776-bromolow` contains a full 
 `synogpl-3776-bromolow/source/libsynosdk/gpl/synosdk/external.h`:
 
 
+Some components of the PMU operation are implemented in the kernel itself. For example some platforms (e.g. 918+) use
+SCSI `libata` to control HDD LEDs for block devices. This allows the kernel to map block device (e.g. `/dev/sda`) to
+physical channel and call [mfgBIOS](mfgbios.md) via ioctl which will send an information to the PMU. This allows for the
+separation of concerns, so that neither mfgBIOS nor PMU must know about internal mapping in the kernel. Currently, the 
+following API has been discovered:
+  - `funcSYNOSATADiskLedCtrl` (`drivers/ata/libata-scsi.c`)
+  - `syno_ahci_disk_led_enable` (`drivers/ata/libahci.c`)
+  - `syno_ahci_disk_led_enable_by_port` (`drivers/ata/libahci.c`)
 
 
 ### How does it play with loaders?
-Unknown. Allegedly Jun's loader contains some code to emulate (all? parts of?) the PMU.
+The legacy Jun's loader registers a virtual port to receive and respond to PMU commands internally (from within the 
+kernel module). RedPill currently does not have such a functionality.
+
+The kernel parts of the PMU communication (e.g. `funcSYNOSATADiskLedCtrl`) are platform-dependent implementation. See 
+the RedPill repo for details (you need to search for it, they may be in a different places).
