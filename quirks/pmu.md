@@ -17,7 +17,15 @@ it will disable disks and render the system unusable if not emulated.
 
 
 ### Implementation
-Unknown. Needs analysis.
+Unknown. Needs deeper analysis.
+
+The PMU communication consists of two parts: `synobios` module doing some low level communication, and userland `scemd` 
+daemon. While none of them are GPLed nor open source, the former used to be. It can be found in the older synogpl 
+packages (up to 5004?). For example the `synogpl-3776-bromolow` contains a full source tree for the `synobios` (in
+`synogpl-3776-bromolow/source/linux-2.6.32/drivers/synobios`) as well as the definition of PMU commands in 
+`synogpl-3776-bromolow/source/libsynosdk/gpl/synosdk/external.h`:
+
+
 
 
 ### How does it play with loaders?
