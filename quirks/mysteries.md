@@ -69,7 +69,7 @@ should print something akin to:
 Currently the reason is unknown. To debug it on a VM (here: Proxmox) create a dummy image and use:
 ```
 losetup -P /dev/loop2 /home/ttg/dsm-research/ds-dsm/dummy-usb-image.bin
-drive_add 1 id=dummyusb,file=/dev/loop2,if=none,format=raw,cache=none,aio=native,detect-zeroes=on,readonly=on
+drive_add 1 id=dummyusb,file=/dev/loop2,if=none,format=raw,cache=none,aio=native,detect-zeroes=on
 device_add usb-storage,id=dummyusb,drive=dummyusb,bootindex=2,removable=on
 ```
 
@@ -85,3 +85,7 @@ Some of the loader code bits realted to that:
 
 ### S/N Validation
 There seems to be a code in the GPL kernel which does some sort of S/N and MACs validation. See `mtdpart.c`.
+
+### GPIO Chip
+On kernels v4.4.x (e.g. 918+) an reasonably well-looking GPIO chip is needed (using `gpiochip_add()`). This is not 
+needed nor exists on v3.10.
