@@ -116,3 +116,74 @@ modules are loaded and how certain parts of kernel's memory are protected (from 
 
 See https://github.com/RedPill-TTG/redpill-lkm/blob/master/shim/bios_shim.c for details.
 
+#### Appendix: official `synobios_ops` structure
+
+While Synobios itself isn't GPLed it actually used to open source. Intentionally or not Synology included its full
+source with some of their releases. See more in the [GPL section](gpl.md). While the code is not explicitly marked as
+GPL it is open sourced. However, even if the [headers aren't copyrightable anyway](https://softwareengineering.stackexchange.com/a/216480).
+
+Additionally, as @Vortex pointed out, the newly-released DSMv7.0 dev toolkit contains the full `synobios_ops` structure.
+It contains not only the list but also function declarations making the identification easier. You can find it in e.g.
+`ds.broadwell-7.0.env.txz/usr/local/include/synobios/synobios.h`:
+
+```C
+//Formatting adjusted here
+struct synobios_ops {
+    struct module   *owner;
+    int	    (*get_brand)(void);
+    int	    (*get_model)(void);
+    int	    (*get_cpld_version)(void);
+    int	    (*get_rtc_time)(struct _SynoRtcTimePkt *);
+    int	    (*set_rtc_time)(struct _SynoRtcTimePkt *);
+    int	    (*get_fan_status)(int, FAN_STATUS *);
+    int	    (*set_fan_status)(FAN_STATUS, FAN_SPEED);
+    int	    (*get_sys_temperature)(struct _SynoThermalTemp *);
+    int	    (*get_cpu_temperature)(struct _SynoCpuTemp *);
+#if defined(CONFIG_SYNO_PORT_MAPPING_V2)
+    int	    (*set_disk_led)(DISKLEDSTATUS*);
+#else /* CONFIG_SYNO_PORT_MAPPING_V2 */
+    int	    (*set_disk_led)(int, SYNO_DISK_LED);
+#endif /* CONFIG_SYNO_PORT_MAPPING_V2 */
+    int	    (*set_power_led)(SYNO_LED);
+    int	    (*get_cpld_reg)(CPLDREG *);
+    int	    (*set_mem_byte)(MEMORY_BYTE *);
+    int	    (*get_mem_byte)(MEMORY_BYTE *);
+    int	    (*set_gpio_pin)(GPIO_PIN *);
+    int	    (*get_gpio_pin)(GPIO_PIN *);
+    int	    (*set_gpio_blink)(GPIO_PIN *);
+    int	    (*set_auto_poweron)(SYNO_AUTO_POWERON *);
+    int	    (*get_auto_poweron)(SYNO_AUTO_POWERON *);
+    int	    (*init_auto_poweron)(void);
+    int	    (*uninit_auto_poweron)(void);
+    int	    (*set_alarm_led)(unsigned char);
+    int	    (*get_buzzer_cleared)(unsigned char *buzzer_cleared);
+    int	    (*set_buzzer_clear)(unsigned char buzzer_clear);
+    int	    (*get_power_status)(POWER_INFO *);
+    int	    (*get_backplane_status)(BACKPLANE_STATUS *);
+    int	    (*module_type_init)(struct synobios_ops *);
+    int	    (*uninitialize)(void);
+    int	    (*set_cpu_fan_status)(FAN_STATUS, FAN_SPEED);
+    int     (*set_phy_led)(SYNO_LED);
+    int     (*set_hdd_led)(SYNO_LED);
+    int	    (*pwm_ctl)(SynoPWMCTL *);
+    int	    (*check_microp_id)(const struct synobios_ops *);
+    int	    (*set_microp_id)(void);
+    int	    (*get_superio)(SYNO_SUPERIO_PACKAGE *);
+    int	    (*set_superio)(SYNO_SUPERIO_PACKAGE *);
+    int	    (*exdisplay_handler)(struct _SynoMsgPkt *);
+    int	    (*read_memory)(SYNO_MEM_ACCESS*);
+    int	    (*write_memory)(SYNO_MEM_ACCESS*);
+    void    (*get_cpu_info)(SYNO_CPU_INFO*, const unsigned int);
+    int     (*set_aha_led)(struct synobios_ops *, SYNO_AHA_LED);
+    int     (*get_copy_button_status)(void); // for matching userspace usage, button pressed = 0, else = 1
+    int     (*hwmon_get_fan_speed_rpm)(SYNO_HWMON_SENSOR_TYPE *);
+    int     (*hwmon_get_psu_status)(SYNO_HWMON_SENSOR_TYPE *, int);
+    int     (*hwmon_get_sys_voltage)(SYNO_HWMON_SENSOR_TYPE *);
+    int     (*hwmon_get_backplane_status)(SYNO_HWMON_SENSOR_TYPE *);
+    int     (*hwmon_get_sys_thermal)(SYNO_HWMON_SENSOR_TYPE *);
+    int     (*hwmon_get_sys_current)(SYNO_HWMON_SENSOR_TYPE *);
+    int     (*set_ok_to_remove_led)(unsigned char ledON);
+    int	    (*get_sys_current)(unsigned long*);
+    int     (*get_disk_intf)(SYNO_DISK_INTF_INFO *);
+};
+```
