@@ -129,7 +129,10 @@ find . 2>/dev/null | cpio -o -H newc -R root:root > ../rd.cpio
 ```
 
 #### Kernel patches
-  - **DS3615xs** with **25556** kernel
+  - **DS3615xs** with **25556** kernel  
+    *You can use the [ramdisk check autopatcher](../tools/patch-ramdisk-check.php) to apply the same changes 
+    automatically.*
+
     ```
     c6 05 52 2e 0b 00 01       MOV        byte ptr [.....],0x1
   
@@ -138,13 +141,18 @@ find . 2>/dev/null | cpio -o -H newc -R root:root > ../rd.cpio
     c6 05 52 2e 0b 00 00       MOV        byte ptr [.....],0x0
     ```
   
-  - **DS3617xs** with **25556** kernel
+  - **DS3617xs** with **25556** kernel  
+    *You can use the [ramdisk check autopatcher](../tools/patch-ramdisk-check.php) to apply the same changes
+    automatically.*
+
     ```
     //tbd (do a diff dumbass since you've lost the patch)
     ```
 
   - **DS918+** with **25556** kernel  
-    You can use `tools/patch-ramdisk-check.php` to autopatch this one.
+    *You can use the [ramdisk check autopatcher](../tools/patch-ramdisk-check.php) to apply the same changes
+    automatically.*
+
     ```
     74 17                   JZ   LAB_ffffffff81893775    ; ramdisk check OK
     48 c7 c7 a2 71 71 81    MOV  RDI,0xffffffff817171a2  ; ramdisk corrupt str.

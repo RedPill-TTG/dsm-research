@@ -117,6 +117,8 @@ Currently, there's a tested patch for the first method. However, it's possible t
 and it may have more unknown side effects. Thus, the second method is preferred. 
 
 ##### Patching `do_mount()`
+***THIS IS NOT RECOMMENDED - see next section***
+
 The `do_mount()` patch relies on replacing a `JNZ` with `JL` (it's practically a `NOOP` but with the correct length as 
 the pointer references an unsigned value).
 
@@ -150,17 +152,20 @@ the pointer references an unsigned value).
       ```
 
 ##### Patching validation
-After finding the method, its beginning can be patched with `RET` (`0xC3`).
-
   - **DS3615xs** with **25556** kernel  
-    Patch the first instruction and fill with `NOP` (`0x90`) to the replaced instruction boundary.
+    ~~After finding the method, its beginning can be patched with `RET` (`0xC3`).~~   
+    ~~Patch the first instruction and fill with `NOP` (`0x90`) to the replaced instruction boundary.~~
     ```
     66 81 3d 86 3d 09 00 08 02    CMP word ptr [<boot_params....>],0x208
                =to=
     c3 90 90 90 90 90 90 90 90    RET, NOP*8
     ```
+    This patch was left only for historical reasons - use [`boot_params` autopatcher](../tools/patch-boot_params-check.php) 
+    which creates a more stable patch!  
 
   - **DS918+** with **25556** kernel  
+    *You can use the [`boot_params` autopatcher](../tools/patch-boot_params-check.php) to apply the same changes automatically.*  
+    
     The check actually seems to be a part of `swiotlb_free()` initcall, which must execute. Thus, it requires a 
     different approach - patching flag sets. 
     ```asm

@@ -8,96 +8,29 @@ declare(strict_types=1);
  * Usage: php patch-ramdisk-check.php vmlinux vmlinux-mod
  */
 
-function perr(string $txt, $die = false)
-{
-    fwrite(STDERR, $txt);
-    if ($die) {
-        die();
-    }
+require __DIR__ . '/common.php';
+
+if ($argc < 2 || $argc > 3) {
+    perr("Usage: " . $argv[0] . " <inFile> [<outFile>]\n", true);
 }
 
-if ($argc != 3) {
-    perr("Usage: " . $argv[0] . " <inFile> <outFile>\n", true);
-}
-
-$file = realpath($argv[1]);
-if (!is_file($file) || !$file) {
-    perr("No file\n", true);
-}
-
+$file = getArgFilePath(1);
 perr("\nGenerating patch for $file\n");
 
-$rodataAddr = exec(sprintf('readelf -S \'%s\' | grep -E \'\.rodata\' | awk \'{ print $5 }\'', $file));
-if (!$rodataAddr) {
-    perr(".rodata not found\n", true);
-}
+//Strings (e.g. error for printk()) reside in .rodata - start searching there to save time
+$rodataAddr = getELFSectionAddr($file, '.rodata');
 
-$rdErrAddr = exec(
-    sprintf(
-        'readelf -p \'.rodata\' \'%s\' | grep \'3ramdisk corrupt\' | grep -oE \'\[(\s+)?.+\]\' | grep -oE \'[a-f0-9]+\'',
-        $file
-    )
-);
-if (!$rdErrAddr) {
-    perr("ramdisk corrupt not found\n", true);
-}
+//Locate the precise location of "ramdisk error" string
+$rdErrAddr = getELFStringLoc($file, '3ramdisk corrupt');
 
-
-function decTo32bLEhex(int $dec)
-{
-    $hex = str_pad(dechex($dec), 32 / 8 * 2, 'f', STR_PAD_LEFT); //32-bit hex
-
-    return implode('', array_reverse(str_split($hex, 2))); //make it little-endian
-}
-
-function decTo32bUFhex(int $dec)
-{
-    return implode(' ', str_split(str_pad(dechex($dec), 32 / 8 * 2, 'f', STR_PAD_LEFT), 2));
-}
-
-function hex2raw(string $hex)
-{
-    $bin = '';
-    for ($i = 0, $iMax = strlen($hex); $i < $iMax; $i += 2) {
-        $bin .= chr(hexdec($hex[$i] . $hex[$i + 1]));
-    }
-
-    return $bin;
-}
 
 //offsets will be 32 bit in ASM and in LE
-$errPrintAddr = hexdec(substr($rodataAddr, -8)) + hexdec($rdErrAddr);
+$errPrintAddr = $rodataAddr + $rdErrAddr;
 $errPrintCAddrLEH = decTo32bLEhex($errPrintAddr - 1); //Somehow rodata contains off-by-one sometimes...
 $errPrintAddrLEH = decTo32bLEhex($errPrintAddr);
-
 perr("LE arg addr: " . $errPrintCAddrLEH . "\n");
 
-$fp = fopen('php://memory', 'r+');
-fwrite($fp, file_get_contents($argv[1])); //poor man's mmap :D
-
-
-const DIR_FWD = 1;
-const DIR_RWD = -1;
-function findSequence($fp, string $bin, int $pos, int $dir, int $maxToCheck)
-{
-    if ($maxToCheck === -1) {
-        $maxToCheck = PHP_INT_MAX;
-    }
-
-    $len = strlen($bin);
-    do {
-        fseek($fp, $pos);
-        if (strcmp(fread($fp, $len), $bin) === 0) {
-            return $pos;
-        }
-
-        $pos = $pos + $dir;
-        $maxToCheck--;
-    } while (!feof($fp) && $pos != -1 && $maxToCheck != 0);
-
-    return -1;
-}
-
+$fp = getFileMemMapped($file); //Read the whole file to memory to make fseet/fread much faster
 
 //Find the printk() call argument
 $printkPos = findSequence($fp, hex2raw($errPrintCAddrLEH), 0, DIR_FWD, -1);
@@ -135,14 +68,17 @@ if ($jz[0] !== "\x74") {
 $jzp = "\xEB" . $jz[1];
 perr('OK - patching ' . bin2hex($jz) . " (JZ) to " . bin2hex($jzp) . " (JMP) @ $jzPos\n");
 fseek($fp, $jzPos); //we should be here already
-perr("Wrote " . fwrite($fp, $jzp) . " bytes to memory\n");
+perr("Patched " . fwrite($fp, $jzp) . " bytes in memory\n");
 
-perr("Saving memory to " . $argv[2] . " ...\n");
-$fp2 = fopen($argv[2], 'w');
-fseek($fp, 0);
-while (!feof($fp)) {
-    fwrite($fp2, fread($fp, 8192));
+if (!isset($argv[2])) {
+    perr("No output file specified - discarding data\n");
+    exit;
 }
-fclose($fp2);
+
+if (!isset($argv[2])) {
+    perr("No output file specified - discarding data\n");
+    exit;
+}
+
+saveStreamToFile($fp, $argv[2]);
 fclose($fp);
-perr("DONE\n", true);
