@@ -94,6 +94,40 @@ modified in any way (e.g. adding new modules) the signature check will not allow
 Requires a ([tricky binary patching](README.md#kernel-binary-patching)).
 
 
+### Recreating ramdisks
+Unpacking and repacking ramdisks is usually pretty straight forward:
+
+```shell
+# unpack ramdisk \/
+mkdir "ramdisk" ; cd "ramdisk"
+xz -dc < ../rd.gz | cpio -idmv
+
+# make any modifications and recompress \/ 
+find . 2>/dev/null | cpio -o -H newc -R root:root | xz -9 --format=lzma > ../rd.gz
+```
+
+However, works with only SOME kernels modified by Syno. Don't ask us why but they broke compressed ramdisks to the point
+that using standard tools we weren't able to make them work again. For excample `apollolake` Linux v4.4.x from 25556 
+release contains the following code in `init/initramfs.c`:
+```c
+#ifdef MY_ABC_HERE
+    if (my_inptr == 0) {
+        printk(KERN_INFO "decompress cpio completed and skip redundant lzma\n");
+        break;
+    }
+#endif /* MY_ABC_HERE */
+```
+
+Attempting to boot with `lzma`-compressed ramdisk causes `unexpected EOF` error while using `gzip` produces read errors.
+However, using uncompressed image works perfectly (but due to size it has to be placed on a second partition):
+
+```shell
+# make any modifications and recompress \/ 
+find . 2>/dev/null | cpio -o -H newc -R root:root > ../rd.cpio
+
+# use "initrd hd(0,1)/rd.cpio" instead of "initrd /rd.gz" in your grub config
+```
+
 #### Kernel patches
   - **DS3615xs** with **25556** kernel
     ```
