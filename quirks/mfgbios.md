@@ -16,6 +16,12 @@ filled with:
 [  156.738788] parameter error. gpiobase=00000000, pin=4, pValue=ffff88000e1d79c4
 ```
 
+Keep in mind this structure above is NOT the same between software versions. The two major changes are:
+  - Addition of different `set_disk_led` signature (but it's `ifdef`ed)
+  - `set_ok_to_remove_led` and `get_sys_current` were shifted below `hwmon_` (without any `idef`s, sic!)
+
+#### Appendix B: HWMON sensors
+Different platforms support different [hwmon](hwmon.md) sensors. Below are these which we briefly tested.
 
 ### Implementation
 Looking through GPLed source code of Linux kernel for DS3615xs we can find many code paths which aren't called directly
@@ -127,73 +133,165 @@ source with some of their releases. See more in the [GPL section](gpl.md). While
 GPL it is open sourced. However, even if the [headers aren't copyrightable anyway](https://softwareengineering.stackexchange.com/a/216480).
 
 Additionally, as @Vortex pointed out, the newly-released DSMv7.0 dev toolkit contains the full `synobios_ops` structure.
-It contains not only the list but also function declarations making the identification easier. You can find it in e.g.
-`ds.broadwell-7.0.dev.txz/usr/local/include/synobios/synobios.h`:
+It contains not only the list but also function declarations making the identification easier. The v6 toolkit also 
+contained that information, but it was hidden more deeply:
 
+
+For v6.2 toolkits you will find it in `ds.apollolake-6.2.dev.txz/usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/include/synobios/synobios.h`:
 ```C
-// Formatting adjusted here
+// v6.2 example
+// Formatting adjusted here (alignmnet, added indexes)
 // Copyright (c) 2000-2003 Synology Inc. All rights reserved.
 struct synobios_ops {
-    struct module   *owner;
-    int	    (*get_brand)(void);
-    int	    (*get_model)(void);
-    int	    (*get_cpld_version)(void);
-    int	    (*get_rtc_time)(struct _SynoRtcTimePkt *);
-    int	    (*set_rtc_time)(struct _SynoRtcTimePkt *);
-    int	    (*get_fan_status)(int, FAN_STATUS *);
-    int	    (*set_fan_status)(FAN_STATUS, FAN_SPEED);
-    int	    (*get_sys_temperature)(struct _SynoThermalTemp *);
-    int	    (*get_cpu_temperature)(struct _SynoCpuTemp *);
-#if defined(CONFIG_SYNO_PORT_MAPPING_V2)
-    int	    (*set_disk_led)(DISKLEDSTATUS*);
-#else /* CONFIG_SYNO_PORT_MAPPING_V2 */
-    int	    (*set_disk_led)(int, SYNO_DISK_LED);
-#endif /* CONFIG_SYNO_PORT_MAPPING_V2 */
-    int	    (*set_power_led)(SYNO_LED);
-    int	    (*get_cpld_reg)(CPLDREG *);
-    int	    (*set_mem_byte)(MEMORY_BYTE *);
-    int	    (*get_mem_byte)(MEMORY_BYTE *);
-    int	    (*set_gpio_pin)(GPIO_PIN *);
-    int	    (*get_gpio_pin)(GPIO_PIN *);
-    int	    (*set_gpio_blink)(GPIO_PIN *);
-    int	    (*set_auto_poweron)(SYNO_AUTO_POWERON *);
-    int	    (*get_auto_poweron)(SYNO_AUTO_POWERON *);
-    int	    (*init_auto_poweron)(void);
-    int	    (*uninit_auto_poweron)(void);
-    int	    (*set_alarm_led)(unsigned char);
-    int	    (*get_buzzer_cleared)(unsigned char *buzzer_cleared);
-    int	    (*set_buzzer_clear)(unsigned char buzzer_clear);
-    int	    (*get_power_status)(POWER_INFO *);
-    int	    (*get_backplane_status)(BACKPLANE_STATUS *);
-    int	    (*module_type_init)(struct synobios_ops *);
-    int	    (*uninitialize)(void);
-    int	    (*set_cpu_fan_status)(FAN_STATUS, FAN_SPEED);
-    int     (*set_phy_led)(SYNO_LED);
-    int     (*set_hdd_led)(SYNO_LED);
-    int	    (*pwm_ctl)(SynoPWMCTL *);
-    int	    (*check_microp_id)(const struct synobios_ops *);
-    int	    (*set_microp_id)(void);
-    int	    (*get_superio)(SYNO_SUPERIO_PACKAGE *);
-    int	    (*set_superio)(SYNO_SUPERIO_PACKAGE *);
-    int	    (*exdisplay_handler)(struct _SynoMsgPkt *);
-    int	    (*read_memory)(SYNO_MEM_ACCESS*);
-    int	    (*write_memory)(SYNO_MEM_ACCESS*);
-    void    (*get_cpu_info)(SYNO_CPU_INFO*, const unsigned int);
-    int     (*set_aha_led)(struct synobios_ops *, SYNO_AHA_LED);
-    int     (*get_copy_button_status)(void); // for matching userspace usage, button pressed = 0, else = 1
-    int     (*hwmon_get_fan_speed_rpm)(SYNO_HWMON_SENSOR_TYPE *);
-    int     (*hwmon_get_psu_status)(SYNO_HWMON_SENSOR_TYPE *, int);
-    int     (*hwmon_get_sys_voltage)(SYNO_HWMON_SENSOR_TYPE *);
-    int     (*hwmon_get_backplane_status)(SYNO_HWMON_SENSOR_TYPE *);
-    int     (*hwmon_get_sys_thermal)(SYNO_HWMON_SENSOR_TYPE *);
-    int     (*hwmon_get_sys_current)(SYNO_HWMON_SENSOR_TYPE *);
-    int     (*set_ok_to_remove_led)(unsigned char ledON);
-    int	    (*get_sys_current)(unsigned long*);
-    int     (*get_disk_intf)(SYNO_DISK_INTF_INFO *);
+/*  0 */   struct module   *owner;
+/*  1 */   int	    (*get_brand)(void);
+/*  2 */   int	    (*get_model)(void);
+/*  3 */   int	    (*get_cpld_version)(void);
+/*  4 */   int	    (*get_rtc_time)(struct _SynoRtcTimePkt *);
+/*  5 */   int	    (*set_rtc_time)(struct _SynoRtcTimePkt *);
+/*  6 */   int	    (*get_fan_status)(int, FAN_STATUS *);
+/*  7 */   int	    (*set_fan_status)(FAN_STATUS, FAN_SPEED);
+/*  8 */   int	    (*get_sys_temperature)(struct _SynoThermalTemp *);
+/*  9 */   int	    (*get_cpu_temperature)(struct _SynoCpuTemp *);
+/* 10 */   int	    (*set_disk_led)(DISKLEDSTATUS*);
+/* 11 */   int	    (*set_power_led)(SYNO_LED);
+/* 12 */   int	    (*get_cpld_reg)(CPLDREG *);
+/* 13 */   int	    (*set_mem_byte)(MEMORY_BYTE *);
+/* 14 */   int	    (*get_mem_byte)(MEMORY_BYTE *);
+/* 15 */   int	    (*set_gpio_pin)(GPIO_PIN *);
+/* 16 */   int	    (*get_gpio_pin)(GPIO_PIN *);
+/* 17 */   int	    (*set_gpio_blink)(GPIO_PIN *);
+/* 18 */   int	    (*set_auto_poweron)(SYNO_AUTO_POWERON *);
+/* 19 */   int	    (*get_auto_poweron)(SYNO_AUTO_POWERON *);
+/* 20 */   int	    (*init_auto_poweron)(void);
+/* 21 */   int	    (*uninit_auto_poweron)(void);
+/* 22 */   int	    (*set_alarm_led)(unsigned char);
+/* 23 */   int	    (*get_buzzer_cleared)(unsigned char *buzzer_cleared);
+/* 24 */   int	    (*set_buzzer_clear)(unsigned char buzzer_clear);
+/* 25 */   int	    (*get_power_status)(POWER_INFO *);
+/* 26 */   int	    (*get_backplane_status)(BACKPLANE_STATUS *);
+/* 27 */   int	    (*module_type_init)(struct synobios_ops *);
+/* 28 */   int	    (*uninitialize)(void);
+/* 29 */   int	    (*set_cpu_fan_status)(FAN_STATUS, FAN_SPEED);
+/* 30 */   int      (*set_phy_led)(SYNO_LED);
+/* 31 */   int      (*set_hdd_led)(SYNO_LED);
+/* 32 */   int	    (*pwm_ctl)(SynoPWMCTL *);
+/* 33 */   int	    (*check_microp_id)(const struct synobios_ops *);
+/* 34 */   int	    (*set_microp_id)(void);
+/* 35 */   int	    (*get_superio)(SYNO_SUPERIO_PACKAGE *);
+/* 36 */   int	    (*set_superio)(SYNO_SUPERIO_PACKAGE *);
+/* 37 */   int	    (*exdisplay_handler)(struct _SynoMsgPkt *);
+/* 38 */   int	    (*read_memory)(SYNO_MEM_ACCESS*);
+/* 39 */   int	    (*write_memory)(SYNO_MEM_ACCESS*);
+/* 40 */   void     (*get_cpu_info)(SYNO_CPU_INFO*, const unsigned int);
+/* 41 */   int      (*set_aha_led)(struct synobios_ops *, SYNO_AHA_LED);
+/* 42 */   int      (*get_copy_button_status)(void); // for matching userspace usage, button pressed = 0, else = 1
+/* 43 */   int      (*set_ok_to_remove_led)(unsigned char ledON);
+/* 44 */   int	    (*get_sys_current)(unsigned long*);
+/* 45 */   int      (*hwmon_get_fan_speed_rpm)(SYNO_HWMON_SENSOR_TYPE *);
+/* 46 */   int      (*hwmon_get_psu_status)(SYNO_HWMON_SENSOR_TYPE *, int);
+/* 47 */   int      (*hwmon_get_sys_voltage)(SYNO_HWMON_SENSOR_TYPE *);
+/* 48 */   int      (*hwmon_get_backplane_status)(SYNO_HWMON_SENSOR_TYPE *);
+/* 49 */   int      (*hwmon_get_sys_thermal)(SYNO_HWMON_SENSOR_TYPE *);
+/* 50 */   int      (*hwmon_get_sys_current)(SYNO_HWMON_SENSOR_TYPE *);
+/* 51 */   int      (*get_disk_intf)(SYNO_DISK_INTF_INFO *);
 };
 ```
 
-#### Appendix B: ioctl control over `synobios`
+For v7 toolkits you will find it in `ds.broadwell-7.0.dev.txz/usr/local/include/synobios/synobios.h`:
+```C
+// v7.0 example
+// Formatting adjusted here (alignmnet, added indexes)
+// Copyright (c) 2000-2003 Synology Inc. All rights reserved.
+struct synobios_ops {
+/*  0 */   struct module   *owner;
+/*  1 */   int	    (*get_brand)(void);
+/*  2 */   int	    (*get_model)(void);
+/*  3 */   int	    (*get_cpld_version)(void);
+/*  4 */   int	    (*get_rtc_time)(struct _SynoRtcTimePkt *);
+/*  5 */   int	    (*set_rtc_time)(struct _SynoRtcTimePkt *);
+/*  6 */   int	    (*get_fan_status)(int, FAN_STATUS *);
+/*  7 */   int	    (*set_fan_status)(FAN_STATUS, FAN_SPEED);
+/*  8 */   int	    (*get_sys_temperature)(struct _SynoThermalTemp *);
+/*  9 */   int	    (*get_cpu_temperature)(struct _SynoCpuTemp *);
+#if defined(CONFIG_SYNO_PORT_MAPPING_V2)
+/* 10 */   int	    (*set_disk_led)(DISKLEDSTATUS*);
+#else /* CONFIG_SYNO_PORT_MAPPING_V2 */
+/* 10 */   int	    (*set_disk_led)(int, SYNO_DISK_LED);
+#endif /* CONFIG_SYNO_PORT_MAPPING_V2 */
+/* 11 */   int	    (*set_power_led)(SYNO_LED);
+/* 12 */   int	    (*get_cpld_reg)(CPLDREG *);
+/* 13 */   int	    (*set_mem_byte)(MEMORY_BYTE *);
+/* 14 */   int	    (*get_mem_byte)(MEMORY_BYTE *);
+/* 15 */   int	    (*set_gpio_pin)(GPIO_PIN *);
+/* 16 */   int	    (*get_gpio_pin)(GPIO_PIN *);
+/* 17 */   int	    (*set_gpio_blink)(GPIO_PIN *);
+/* 18 */   int	    (*set_auto_poweron)(SYNO_AUTO_POWERON *);
+/* 19 */   int	    (*get_auto_poweron)(SYNO_AUTO_POWERON *);
+/* 20 */   int	    (*init_auto_poweron)(void);
+/* 21 */   int	    (*uninit_auto_poweron)(void);
+/* 22 */   int	    (*set_alarm_led)(unsigned char);
+/* 23 */   int	    (*get_buzzer_cleared)(unsigned char *buzzer_cleared);
+/* 24 */   int	    (*set_buzzer_clear)(unsigned char buzzer_clear);
+/* 25 */   int	    (*get_power_status)(POWER_INFO *);
+/* 26 */   int	    (*get_backplane_status)(BACKPLANE_STATUS *);
+/* 27 */   int	    (*module_type_init)(struct synobios_ops *);
+/* 28 */   int	    (*uninitialize)(void);
+/* 29 */   int	    (*set_cpu_fan_status)(FAN_STATUS, FAN_SPEED);
+/* 30 */   int      (*set_phy_led)(SYNO_LED);
+/* 31 */   int      (*set_hdd_led)(SYNO_LED);
+/* 32 */   int	    (*pwm_ctl)(SynoPWMCTL *);
+/* 33 */   int	    (*check_microp_id)(const struct synobios_ops *);
+/* 34 */   int	    (*set_microp_id)(void);
+/* 35 */   int	    (*get_superio)(SYNO_SUPERIO_PACKAGE *);
+/* 36 */   int	    (*set_superio)(SYNO_SUPERIO_PACKAGE *);
+/* 37 */   int	    (*exdisplay_handler)(struct _SynoMsgPkt *);
+/* 38 */   int	    (*read_memory)(SYNO_MEM_ACCESS*);
+/* 39 */   int	    (*write_memory)(SYNO_MEM_ACCESS*);
+/* 40 */   void     (*get_cpu_info)(SYNO_CPU_INFO*, const unsigned int);
+/* 41 */   int      (*set_aha_led)(struct synobios_ops *, SYNO_AHA_LED);
+/* 42 */   int      (*get_copy_button_status)(void); // for matching userspace usage, button pressed = 0, else = 1
+/* 43 */   int      (*hwmon_get_fan_speed_rpm)(SYNO_HWMON_SENSOR_TYPE *);
+/* 44 */   int      (*hwmon_get_psu_status)(SYNO_HWMON_SENSOR_TYPE *, int); 
+/* 45 */   int      (*hwmon_get_sys_voltage)(SYNO_HWMON_SENSOR_TYPE *);
+/* 46 */   int      (*hwmon_get_backplane_status)(SYNO_HWMON_SENSOR_TYPE *);
+/* 47 */   int      (*hwmon_get_sys_thermal)(SYNO_HWMON_SENSOR_TYPE *);
+/* 48 */   int      (*hwmon_get_sys_current)(SYNO_HWMON_SENSOR_TYPE *);
+/* 49 */   int      (*set_ok_to_remove_led)(unsigned char ledON);
+/* 50 */   int	    (*get_sys_current)(unsigned long*);
+/* 51 */   int      (*get_disk_intf)(SYNO_DISK_INTF_INFO *);
+};
+```
+
+1. **Bromolow** platform
+   - Models checked: 
+       - DS: DS3615xs *(the only one thoroughly tested)*
+       - RS: RS3614xs, RS3614xs+, RS3614(RP)xs, RC18015xs+
+   - Sensors available:
+       - `hwmon_get_fan_speed_rpm`
+       - `hwmon_get_sys_voltage`
+       - `hwmon_get_sys_thermal`
+
+2. **Apollolake** platform
+    - Models checked:
+        - DS: DS218+, DS418play, DS419+, DS718+, DS719+, DS620slim,  DS918+ *(the only one thoroughly tested)*, DS1019+
+        - RS: RS419+
+    - Sensors available:
+        - `hwmon_get_backplane_status`
+
+3. **Broadwellnk** platform
+    - Models checked:
+        - DS: DS1621xs+, DS3622xs+, 
+        - RS: RS1619xs+, RS3621xs+, RS3621(RP)xs, RS4021xs+
+    - Sensors mapping:
+        - `hwmon_get_fan_speed_rpm`
+        - `hwmon_get_sys_voltage`
+        - `hwmon_get_backplane_status` *(DS1621xs+ and RS1619xs+ only?)*
+        - `hwmon_get_sys_thermal`
+
+To read more about the `hwmon` see the dedicated [Hardware Monitor document](hwmon.md).        
+
+#### Appendix C: ioctl control over `synobios`
 Userland applications don't usually communicate with the hardware directly but ask the `/dev/synobios` to perform a
 certain subset of actions. These actions are performed via `ioctl` mechanism. All commands are specified in a userland
 header file `synobios/synobios.h`, available in `.dev` toolkits (e.g. `ds.broadwell-7.0.dev.txz`) under

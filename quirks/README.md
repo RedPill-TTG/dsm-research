@@ -81,13 +81,19 @@ List of known quirks (in a recommended to be read order):
     - Loader impact: LKM emulator
     - Kernel options: N/A
 
-14. [**Low-level Firmware update**](hw-firmware-update.md)
+14. [**Hardware Monitor (`hwmon`)**](hwmon.md)
+    - Type: hw feature
+    - Understood: yes
+    - Loader impact: LKM emulator
+    - Kernel options: N/A
+
+15. [**Low-level Firmware update**](hw-firmware-update.md)
     - Type: hw feature
     - Understood: yes
     - Loader impact: LKM shim or user-mode workaround 
     - Kernel options: N/A
 
-15. [**PCI configuration**](pci.md)
+16. [**PCI configuration**](pci.md)
     - Type: hw feature, sanity check
     - Understood: yes
     - Loader impact: LKM emulator
