@@ -39,23 +39,29 @@ List of known quirks (in a recommended to be read order):
     - Loader impact: kernel binpatch, LKM shim
     - Kernel options: `vid=`, `pid=`, `synoboot_satadom=`
 
-8. [**Ramdisk checksum**](ramdisk-checksum.md)
+7. [**Ramdisk checksum**](ramdisk-checksum.md)
     - Type: integrity verification
     - Understood: yes
     - Loader impact: kernel binpatch
     - Kernel options: N/A
 
-9. [**`boot_params` Validation**](boot_params-validation.md)
+8. [**`boot_params` Validation**](boot_params-validation.md)
     - Type: integrity verification
     - Understood: partially
     - Loader impact: kernel binpatch
     - Kernel options: N/A
 
-10. [**Serial port swapping**](serial-port-swapping.md)
-     - Type: operation parameter
-     - Understood: yes
-     - Loader impact: LKM shim (hw version dependent)
-     - Kernel options: N/A
+9. [**Serial port swapping**](serial-port-swapping.md)
+    - Type: operation parameter
+    - Understood: yes
+    - Loader impact: LKM shim (hw version dependent)
+    - Kernel options: N/A
+
+10. [**Serial port muting**](serial-ports-muted.md)
+    - Type: operation parameter
+    - Understood: partially
+    - Loader impact: LKM shim (hw version dependent)
+    - Kernel options: N/A 
 
 11. [**Platform management unit**](pmu.md)
      - Type: hw feature
