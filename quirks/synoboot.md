@@ -76,6 +76,8 @@ Some details:
   - Only some models are expected to use SATA DOM (Disk-on-Module) which is controlled by `CONFIG_SYNO_BOOT_SATA_DOM`
   - Different DS models use different disk modules, so that their `CONFIG_SYNO_SATA_DOM_VENDOR` and
     `CONFIG_SYNO_SATA_DOM_MODEL` are different 
+  - Only a limited subset of platforms can support native SATA DOM (e.g. `apollolake` platform is built without
+    `CONFIG_SYNO_BOOT_SATA_DOM`)
 
 Example of a configuration for `bromolow` platform:  
   ```

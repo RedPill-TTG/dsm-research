@@ -51,6 +51,44 @@ These types are determined in the `drivers/scsi/sd.c:sd_probe()`, called as the 
 the system. All but one type should be self-explanatory. The `SYNO_DISK_SYNOBOOT` is discussed in more details in the
 ["Synoboot" section](synoboot.md).
 
+#### SMART support
+Since v7 the following types are expected to support SMART, or they will be constantly marked as unhealthy. This will 
+case these disks to be unusable for pools creation (rendering them useless):
+ - `SYNO_DISK_SATA`
+ - `SYNO_DISK_SAS`
+ - `SYNO_DISK_CACHE`
+
+
+### Special cases
+
+#### VirtIO SCSI disks
+Disks connected using VirtIO driver can be passed via SCSI or SATA. Using the former allows for many more drives, while
+the latter has more widespread support. The `sd.c` SCSI driver contains a special provisioning for SCSI VirtIO disks,
+treating them exactly like `SYNO_DISK_SATA` type. However, that provisioning is active for limited subset of platforms.
+Based on the constants in the GPL code it's probably only active in [VDSM mode](../VDSM/README.md):
+
+```C
+//sd.c:sd_probe()
+
+#if defined(MY_ABC_HERE) || defined(CONFIG_SYNO_NEXTKVMX64)
+  if (strcmp(sdp->host->hostt->name, "Virtio SCSI HBA") == 0){
+#ifdef MY_ABC_HERE
+    while (virtdev) {
+      if (virtdev->driver && virtdev->driver->name && !strcmp(virtdev->driver->name, "virtio-pci")) {
+        pcidev = to_pci_dev(virtdev);
+        break;
+      }
+      virtdev = virtdev->parent;
+    }
+    if (pcidev && PCI_SLOT(pcidev->devfn) == CONFIG_SYNO_KVMX64_PCI_SLOT_BOOT) {
+      return SYNO_DISK_SYNOBOOT;
+    }
+#endif  
+    return SYNO_DISK_SATA;
+  }
+#endif  
+```
+
 
 ### Flags
 There are some flags associated with disks. This is by no means a complete list (see `drivers/scsi/sd.c`).
