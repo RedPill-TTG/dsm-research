@@ -69,19 +69,10 @@ should print something akin to:
 Currently the reason is unknown. To debug it on a VM (here: Proxmox) create a dummy image and use:
 ```
 losetup -P /dev/loop2 /home/ttg/dsm-research/ds-dsm/dummy-usb-image.bin
+qm monitor 123
 drive_add 1 id=dummyusb,file=/dev/loop2,if=none,format=raw,cache=none,aio=native,detect-zeroes=on
 device_add usb-storage,id=dummyusb,drive=dummyusb,bootindex=2,removable=on
 ```
-
-
-### RTC must be emulated?
-Jun's loader contains a bunch of functions for RTC emulation. Additionally, as IG-88 from Xpenology Community mentioned
-that for DS918+ RTC emulation was needed.
-
-Some of the loader code bits realted to that:  
-![rtc functions](imgs/rtc1.png)  
-![rtc code](imgs/rtc2.png)  
-
 
 ### S/N Validation
 There seems to be a code in the GPL kernel which does some sort of S/N and MACs validation. See `mtdpart.c`.
