@@ -25,17 +25,28 @@ function printForDay(\DateTimeInterface $date)
     printf("Password for %s: %s\n", $date->format('m/F d'), getForDay($date));
 }
 
-printForDay(new \DateTime()); //Print for today
-printf("%s\n", str_repeat('-', 50));
+switch ($argv[1] ?? null) {
+    case '-a':
+        $date = DateTime::createFromFormat('z-Y', '0-2000'); //Use some leap year
+        $day = new DateInterval('P1D');
 
-if ($argc > 1 && $argv[1] === '-a') {
-    $date = DateTime::createFromFormat('z-Y', '0-2000'); //Use some leap year
-    $day = new DateInterval('P1D');
+        for($i=1; $i<=366; $i++) {
+            printForDay($date);
+            $date->add($day);
+        }
+        break;
 
-    for($i=1; $i<=366; $i++) {
-        printForDay($date);
-        $date->add($day);
-    }
-} else {
-    echo "Tip: run with -a to print all daily password for the whole year\n";
+    case '-3':
+        printForDay(new \DateTimeImmutable('yesterday 00:00'));
+        printForDay(new \DateTimeImmutable());
+        printForDay(new \DateTimeImmutable('tomorrow 00:00'));
+        break;
+
+    default:
+        printForDay(new \DateTime()); //Print for today
+
+        printf("%s\n", str_repeat('-', 50));
+        echo "Tip: run with the following options\n" .
+             "\t-a to print all daily password for the whole year\n" .
+             "\t-3 to print 3-days with today as center (for TZ difference)\n";
 }
