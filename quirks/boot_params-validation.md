@@ -160,14 +160,21 @@ After finding the method, its beginning can be patched with `RET` (`0xC3`).
     c3 90 90 90 90 90 90 90 90    RET, NOP*8
     ```
 
-  - ~~**DS918+** with **25556** kernel~~  
-    ***(WARNING: this patch seems to cause random KP - investigation in progress)***    
-    Find the CMP instruction (which is unique in the binary) and patch `PUSH RBP` (`0x55`) before it to `RET` (`0x90`). 
-    ```
-    55                            PUSH RBP
-    66 81 3d 4e ee 09 00 08 02    CMP word ptr [<boot_params....>],0x208
-               =to=
-    90                            RET
-    66 81 3d 4e ee 09 00 08 02    CMP word ptr [<boot_params....>],0x208
+  - **DS918+** with **25556** kernel  
+    The check actually seems to be a part of `swiotlb_free()` initcall, which must execute. Thus, it requires a 
+    different approach - patching flag sets. 
+    ```asm
+    ; 4 patches, first line is to find, second to replace
+    80 0d f4 f2 12 00 01      OR  byte ptr [synoChainOfTrustBroken],0x1
+    80 25 f4 f2 12 00 01      AND byte ptr [synoChainOfTrustBroken],0x1
+    
+    80 0d 99 f2 12 00 02      OR  byte ptr [synoChainOfTrustBroken],0x2
+    80 25 99 f2 12 00 02      AND byte ptr [synoChainOfTrustBroken],0x2
+    
+    80 0d 5f f2 12 00 04      OR  byte ptr [synoChainOfTrustBroken],0x4
+    80 25 5f f2 12 00 04      OR  byte ptr [synoChainOfTrustBroken],0x4
+    
+    80 0d 4c f2 12 00 08      OR  byte ptr [synoChainOfTrustBroken],0x8
+    80 25 4c f2 12 00 08      AND byte ptr [synoChainOfTrustBroken],0x8    
     ```
 
