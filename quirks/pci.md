@@ -66,3 +66,4 @@ Each method has its pros and cons:
    - Linux doesn't have an off-the-shelf API for PCI virtualization. However, it can be accomplished with a low-level 
      API. Essentially a virtual PCI memory segment is needed, which is then read using callback passed to 
      [`pci_scan_bus()`](https://elixir.bootlin.com/linux/v3.10.108/source/drivers/pci/probe.c#L1910)
+   - See https://github.com/dsm-redpill/redpill-lkm/blob/master/shim/pci_shim.c for details.
