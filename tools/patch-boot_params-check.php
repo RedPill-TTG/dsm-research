@@ -24,7 +24,7 @@ $file = getArgFilePath(1);
 perr("\nGenerating patch for $file\n");
 
 //The function will reside in init code part. We don't care we may potentially search beyond as we expect it to be found
-$codeAddr = getELFSectionAddr($file, '.init.text');
+$codeAddr = getELFSectionAddr($file, '.init.text', 3);
 
 //Finding a function boundary is non-trivial really as patters can vary, we can have multiple exit points, and in CISC
 // there are many things which may match e.g. "PUSH EBP". Implementing even a rough disassembler is pointless.

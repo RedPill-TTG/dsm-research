@@ -18,7 +18,7 @@ $file = getArgFilePath(1);
 perr("\nGenerating patch for $file\n");
 
 //Strings (e.g. error for printk()) reside in .rodata - start searching there to save time
-$rodataAddr = getELFSectionAddr($file, '.rodata');
+$rodataAddr = getELFSectionAddr($file, '.rodata', 2);
 
 //Locate the precise location of "ramdisk error" string
 $rdErrAddr = getELFStringLoc($file, '3ramdisk corrupt');
