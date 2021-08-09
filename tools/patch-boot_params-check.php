@@ -11,7 +11,7 @@ declare(strict_types=1);
  *  - values of ORs are 1/2/4/8 respectively
  *  - [const-ptr] is always the same
  *
- * Usage: php patch-header-check.php vmlinux vmlinux-mod
+ * Usage: php patch-boot_params-check.php vmlinux vmlinux-mod
  */
 
 require __DIR__ . '/common.php';
@@ -128,7 +128,7 @@ foreach ($orsPos as $seqFileOffset) {
 
     perr("Patching OR to AND @ file offset (dec)$seqFileOffset\n");
     fseek($fp, $seqFileOffset);
-    fwrite($fp, "\x25"); //0x80 is OR, 0x25 is AND
+    fwrite($fp, "\x25"); //0x0d is OR, 0x25 is AND
 }
 
 if (!isset($argv[2])) {
