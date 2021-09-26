@@ -18,7 +18,7 @@ $file = getArgFilePath(1);
 perr("\nGenerating patch for $file\n");
 
 //Strings (e.g. error for printk()) reside in .rodata - start searching there to save time
-$rodataAddr = getELFSectionAddr($file, '.rodata');
+$rodataAddr = getELFSectionAddr($file, '.rodata', 2);
 
 //Locate the precise location of "ramdisk error" string
 $rdErrAddr = getELFStringLoc($file, '3ramdisk corrupt');
@@ -37,7 +37,7 @@ $printkPos = findSequence($fp, hex2raw($errPrintCAddrLEH), 0, DIR_FWD, -1);
 if ($printkPos === -1) {
     perr("printk pos not found!\n", true);
 }
-perr("Found pritk arg @ " . decTo32bUFhex($printkPos) . "\n");
+perr("Found printk arg @ " . decTo32bUFhex($printkPos) . "\n");
 
 //double check if it's a MOV reg,VAL (where reg is EAX/ECX/EDX/EBX/ESP/EBP/ESI/EDI)
 fseek($fp, $printkPos - 3);

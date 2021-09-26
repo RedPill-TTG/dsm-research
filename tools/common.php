@@ -20,10 +20,10 @@ function perr(string $txt, $die = false)
 /**
  * @return int
  */
-function getELFSectionAddr(string $elf, string $section)
+function getELFSectionAddr(string $elf, string $section, int $pos)
 {
     $secAddr = exec(
-        sprintf('readelf -S \'%s\' | grep -E \'\s%s\s\' | awk \'{ print $5 }\'', $elf, str_replace('.', '\.', $section))
+        sprintf('readelf -S \'%1$s\' | grep -E \'\s%2$s\s\' | awk -F\'%2$s\' \'{ print $2 }\' | awk \'{ print $%3$d }\'', $elf, str_replace('.', '\.', $section), $pos)
     );
     if (!$secAddr) {
         perr("$section section not found in $elf file\n", true);
